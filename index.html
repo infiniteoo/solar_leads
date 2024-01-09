@@ -1,90 +1,109 @@
 <!DOCTYPE html>
-<html>
-  <meta charset="utf-8" />
-  <style>
-    .feature {
-      fill: #ccc;
-    }
+<meta charset="utf-8" />
+<style>
+  .outline {
+    fill: none;
+    stroke: #000;
+    stroke-width: 1.5px;
+  }
 
-    .mesh {
-      fill: none;
-      stroke: #fff;
-      stroke-width: 0.5px;
-      stroke-linejoin: round;
-    }
+  .feature {
+    fill: #ccc;
+  }
 
-    .outline {
-      fill: #ddd;
-      stroke: #000;
-      stroke-width: 1.5px;
-    }
-  </style>
-  <body>
-    <script src="https://d3js.org/d3.v3.min.js"></script>
-    <script src="https://d3js.org/topojson.v1.min.js"></script>
-    <script>
-      var width = 960,
-        height = 500;
+  .mesh {
+    fill: none;
+    stroke: #fff;
+    stroke-width: 0.5px;
+    stroke-linejoin: round;
+  }
 
-      var projection = d3.geo.albers();
+  path {
+    fill: #ccc;
+    stroke: #fff;
+    stroke-width: 0.5px;
+  }
+  .county:hover {
+    fill: orange;
+  }
+</style>
+<body>
+  <script src="//d3js.org/d3.v3.min.js"></script>
+  <script src="//d3js.org/topojson.v1.min.js"></script>
+  <script>
+    var width = 960,
+      height = 500;
 
-      var path = d3.geo.path().projection(projection);
+    var projection = d3.geo.albers();
 
-      var svg = d3
-        .select("body")
-        .append("svg")
-        .attr("width", width)
-        .attr("height", height);
+    /*
+var projection = d3.geo.transverseMercator()
+          .rotate([120 + 30 / 60, -38 - 50 / 60])
 
-      d3.json(
-        "us.json",
-        function (error, us) {
-          if (error) throw error;
+*/
 
-          var states = topojson.feature(us, us.objects.states),
-            state = states.features.filter(function (d) {
-              return d.id === 6;
-            })[0];
+    var path = d3.geo.path().projection(projection);
 
-          projection.scale(1).translate([0, 0]);
+    var svg = d3
+      .select("body")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+    d3.json("us.json", function (error, us) {
+      if (error) throw error;
 
-          var b = path.bounds(state),
-            s =
-              0.95 /
-              Math.max(
-                (b[1][0] - b[0][0]) / width,
-                (b[1][1] - b[0][1]) / height
-              ),
-            t = [
-              (width - s * (b[1][0] + b[0][0])) / 2,
-              (height - s * (b[1][1] + b[0][1])) / 2,
-            ];
+      var states = topojson.feature(us, us.objects.states),
+        state = states.features.filter(function (d) {
+          return d.id === 06;
+        })[0];
 
-          projection.scale(s).translate(t);
+      projection.scale(1).translate([0, 0]);
 
-          svg
-            .append("path")
-            .datum(states)
-            .attr("class", "feature")
-            .attr("d", path);
+      var b = path.bounds(state),
+        s =
+          0.95 /
+          Math.max((b[1][0] - b[0][0]) / width, (b[1][1] - b[0][1]) / height),
+        t = [
+          (width - s * (b[1][0] + b[0][0])) / 2,
+          (height - s * (b[1][1] + b[0][1])) / 2,
+        ];
 
-          svg
-            .append("path")
-            .datum(
-              topojson.mesh(us, us.objects.states, function (a, b) {
-                return a !== b;
-              })
-            )
-            .attr("class", "mesh")
-            .attr("d", path);
+      projection.scale(s).translate(t);
 
-          svg
-            .append("path")
-            .datum(state)
-            .attr("class", "outline")
-            .attr("d", path);
-        }
-      );
-    </script>
-  </body>
-</html>
+      svg
+        .append("path")
+        .datum(
+          topojson.mesh(us, us.objects.states, function (a, b) {
+            return a !== b;
+          })
+        )
+        .attr("class", "mesh")
+        .attr("d", path);
+
+      svg
+        .append("path")
+        .datum(state)
+        .attr("class", "outline")
+        .attr("d", path)
+        .attr("id", "land");
+
+      svg
+        .append("clipPath")
+        .attr("id", "clip-land")
+        .append("use")
+        .attr("xlink:href", "#land");
+
+      svg
+        .selectAll("path")
+        .data(topojson.feature(us, us.objects.counties).features)
+        .enter()
+        .append("path")
+        .attr("d", path)
+        .attr("county-id", function (d) {
+          return d.id;
+        })
+        .attr("clip-path", "url(#clip-land)")
+        .attr("class", "county");
+    });
+  </script>
+</body>
