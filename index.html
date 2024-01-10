@@ -23,8 +23,21 @@
     stroke: #fff;
     stroke-width: 0.5px;
   }
+
+  .county {
+    fill: #ccc;
+    stroke: #fff;
+    stroke-width: 0.5px;
+  }
+
   .county:hover {
     fill: orange;
+  }
+
+  .county-label {
+    font-size: 10px;
+    fill: black;
+    display: none;
   }
 </style>
 <body>
@@ -36,12 +49,6 @@
 
     var projection = d3.geo.albers();
 
-    /*
-var projection = d3.geo.transverseMercator()
-          .rotate([120 + 30 / 60, -38 - 50 / 60])
-
-*/
-
     var path = d3.geo.path().projection(projection);
 
     var svg = d3
@@ -49,12 +56,14 @@ var projection = d3.geo.transverseMercator()
       .append("svg")
       .attr("width", width)
       .attr("height", height);
+
+    // Load us.json first
     d3.json("us.json", function (error, us) {
       if (error) throw error;
 
       var states = topojson.feature(us, us.objects.states),
         state = states.features.filter(function (d) {
-          return d.id === 06;
+          return d.id === 0o6;
         })[0];
 
       projection.scale(1).translate([0, 0]);
@@ -93,17 +102,60 @@ var projection = d3.geo.transverseMercator()
         .append("use")
         .attr("xlink:href", "#land");
 
-      svg
-        .selectAll("path")
-        .data(topojson.feature(us, us.objects.counties).features)
-        .enter()
-        .append("path")
-        .attr("d", path)
-        .attr("county-id", function (d) {
-          return d.id;
-        })
-        .attr("clip-path", "url(#clip-land)")
-        .attr("class", "county");
+      // Load counties.json after us.json
+      d3.json("counties.json", function (error, counties) {
+        if (error) throw error;
+
+        // Create a map of county names based on county ID
+        var countyNameMap = new Map();
+        counties.forEach(function (county) {
+          countyNameMap.set(county.id, county.properties.name);
+        
+        });
+        console.log(countyNameMap);
+
+        // Create a group for counties
+        var countiesGroup = svg.append("g").attr("class", "counties-group");
+
+        // Append counties
+        countiesGroup
+          .selectAll(".county")
+          .data(topojson.feature(us, us.objects.counties).features)
+          .enter()
+          .append("path")
+          .attr("d", path)
+          .attr("county-id", function (d) {
+            return d.id;
+          })
+          .attr("clip-path", "url(#clip-land)")
+          .attr("class", "county")
+          .on("mouseover", function (d) {
+            var countyName = countyNameMap.get("0" + d.id);
+            if (countyName) {
+              d3.select(".county-label")
+                .text(countyName)
+                .attr("transform", "translate(" + projection(d3.geo.centroid(d)) + ")")
+                .style("display", "block");
+            } else {
+              console.log("No name property found for county:", d);
+            }
+          })
+          .on("mouseout", function () {
+            d3.select(".county-label").style("display", "none");
+          });
+
+        // Create a group for county labels
+        var labelsGroup = svg.append("g").attr("class", "labels-group");
+
+        // Append county labels
+        labelsGroup
+          .selectAll(".county-label")
+          .data(topojson.feature(us, us.objects.counties).features)
+          .enter()
+          .append("text")
+          .attr("class", "county-label")
+          .style("display", "none"); // Initially hide labels
+      });
     });
   </script>
 </body>
