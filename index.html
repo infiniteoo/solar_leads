@@ -1,10 +1,37 @@
 <!DOCTYPE html>
 <meta charset="utf-8" />
 <style>
+  .container {
+    display: flex;
+    justify-content: space-between;
+    position: relative; /* Add relative positioning to the container */
+  }
+
+  .map,
+  .form {
+    width: 48%; /* Adjust the width as needed */
+  }
+
   .outline {
     fill: none;
     stroke: #000;
     stroke-width: 1.5px;
+  }
+  .form form {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .popup {
+    display: none;
+    flex-direction: column;
+    padding: 10px;
+    background-color: white;
+    border: 1px solid #ccc;
+    z-index: 999;
+    position: absolute; /* Set absolute positioning */
+    top: 0; /* Align with the top of the container */
+    left: 100%; /* Position to the right of the container */
   }
 
   .feature {
@@ -35,21 +62,49 @@
   }
 
   .county-label {
-    font-size: 10px;
+    font-size: 24px; /* Adjust the font size as needed */
     fill: black;
     display: none;
   }
 </style>
 <body>
+  <div class="container">
+    <div class="map"></div>
+    <div class="form">
+      <!-- Popup form -->
+      <div id="popup" class="popup">
+        <h3>Contact Form</h3>
+        <form id="contactForm">
+          <label for="name">Name:</label>
+          <input type="text" id="name" name="name" required />
+
+          <label for="email">Email:</label>
+          <input type="email" id="email" name="email" required />
+
+          <label for="phone">Phone:</label>
+          <input type="tel" id="phone" name="phone" required />
+
+          <label for="address">Address:</label>
+          <input type="text" id="address" name="address" required />
+
+          <button type="button" onclick="submitForm()">Submit</button>
+        </form>
+        <div id="successMessage" style="display: none">
+          We will contact you shortly.
+        </div>
+      </div>
+    </div>
+  </div>
   <script src="//d3js.org/d3.v3.min.js"></script>
   <script src="//d3js.org/topojson.v1.min.js"></script>
+
   <script>
-    var width = 960,
-      height = 500;
+    var width = 600; /* Adjust the width as needed */
+    var height = 800; /* Adjust the height as needed */
 
     var projection = d3.geo.albers();
-
     var path = d3.geo.path().projection(projection);
+    var countyNameMap = new Map(); // Declare countyNameMap here
 
     var svg = d3
       .select("body")
@@ -106,13 +161,9 @@
       d3.json("counties.json", function (error, counties) {
         if (error) throw error;
 
-        // Create a map of county names based on county ID
-        var countyNameMap = new Map();
         counties.forEach(function (county) {
           countyNameMap.set(county.id, county.properties.name);
-        
         });
-        console.log(countyNameMap);
 
         // Create a group for counties
         var countiesGroup = svg.append("g").attr("class", "counties-group");
@@ -129,13 +180,30 @@
           })
           .attr("clip-path", "url(#clip-land)")
           .attr("class", "county")
+          .on("click", function (d) {
+            var countyName = countyNameMap.get("0" + d.id);
+            if (countyName) {
+              d3.select("#popup")
+                .style("display", "flex")
+                .style("left", projection(d3.geo.centroid(d))[0] + "px")
+                .style("top", projection(d3.geo.centroid(d))[1] + "px");
+
+              // Set the county name in the form
+              document.getElementById("name").value = countyName;
+            } else {
+              console.log("No name property found for county:", d);
+            }
+          })
           .on("mouseover", function (d) {
             var countyName = countyNameMap.get("0" + d.id);
             if (countyName) {
               d3.select(".county-label")
                 .text(countyName)
-                .attr("transform", "translate(" + projection(d3.geo.centroid(d)) + ")")
-                .style("display", "block");
+                .attr(
+                  "transform",
+                  "translate(" + projection(d3.geo.centroid(d)) + ")"
+                )
+                .style("display", "flex");
             } else {
               console.log("No name property found for county:", d);
             }
@@ -157,5 +225,17 @@
           .style("display", "none"); // Initially hide labels
       });
     });
+
+    // Function to submit the form
+    function submitForm() {
+      // You can add logic to send the form data to the server for email processing
+      // For demonstration purposes, we'll just show a success message and hide the form
+
+      // Show success message
+      document.getElementById("successMessage").style.display = "block";
+
+      // Hide the form after submission
+      document.getElementById("popup").style.display = "none";
+    }
   </script>
 </body>
