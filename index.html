@@ -1,70 +1,122 @@
 <!DOCTYPE html>
 <meta charset="utf-8" />
 <style>
+  body {
+    margin: 0;
+    font-family: "Arial", sans-serif;
+    background: linear-gradient(to right, #4b6cb7, #182848);
+    color: #fff;
+  }
+
   .container {
     display: flex;
     justify-content: space-between;
-    position: relative; /* Add relative positioning to the container */
+    position: relative;
+    padding: 20px;
   }
 
   .map,
   .form {
-    width: 48%; /* Adjust the width as needed */
+    width: 48%;
   }
 
   .outline {
     fill: none;
-    stroke: #000;
+    stroke: #1d2941;
     stroke-width: 1.5px;
-  }
-  .form form {
-    display: flex;
-    flex-direction: column;
   }
 
   .popup {
     display: none;
     flex-direction: column;
-    padding: 10px;
-    background-color: white;
-    border: 1px solid #ccc;
+    padding: 20px;
+    background-color: #1d2941;
+    border: 1px solid #4b6cb7;
     z-index: 999;
-    position: absolute; /* Set absolute positioning */
-    top: 0; /* Align with the top of the container */
-    left: 100%; /* Position to the right of the container */
+    position: absolute;
+    top: 0;
+    left: 100%;
+    border-radius: 8px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
   }
 
   .feature {
-    fill: #ccc;
+    fill: #4b6cb7;
   }
 
   .mesh {
     fill: none;
-    stroke: #fff;
+    stroke: #3f557e;
     stroke-width: 0.5px;
     stroke-linejoin: round;
   }
 
   path {
-    fill: #ccc;
-    stroke: #fff;
+    fill: #4b6cb7;
+    stroke: #3f557e;
     stroke-width: 0.5px;
   }
 
   .county {
-    fill: #ccc;
-    stroke: #fff;
+    fill: #6a8cc7;
+    stroke: #3f557e;
     stroke-width: 0.5px;
+    transition: fill 0.3s ease; /* Added transition for smoother color change */
   }
 
   .county:hover {
-    fill: orange;
+    fill: #ffa500 !important;
   }
 
   .county-label {
-    font-size: 24px; /* Adjust the font size as needed */
-    fill: black;
+    font-size: 24px;
+    fill: #fff;
     display: none;
+    position: absolute;
+    pointer-events: none;
+    z-index: 9999;
+    background-color: #1d2941;
+    padding: 5px;
+    border: 1px solid #4b6cb7;
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+    text-anchor: middle;
+  }
+
+  .form form {
+    display: flex;
+    flex-direction: column;
+  }
+
+  label {
+    margin-bottom: 5px;
+  }
+
+  input {
+    padding: 8px;
+    margin-bottom: 10px;
+    border: 1px solid #6a8cc7;
+    border-radius: 4px;
+  }
+
+  button {
+    padding: 10px;
+    background-color: #ffa500;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+
+  button:hover {
+    background-color: #ff8000;
+  }
+
+  #successMessage {
+    margin-top: 10px;
+    color: #4caf50;
+    font-weight: bold;
   }
 </style>
 <body>
@@ -73,7 +125,7 @@
     <div class="form">
       <!-- Popup form -->
       <div id="popup" class="popup">
-        <h3>Contact Form</h3>
+        <h2 style="margin-bottom: 10px">Contact Form</h2>
         <form id="contactForm">
           <label for="name">Name:</label>
           <input type="text" id="name" name="name" required />
@@ -99,20 +151,19 @@
   <script src="//d3js.org/topojson.v1.min.js"></script>
 
   <script>
-    var width = 600; /* Adjust the width as needed */
-    var height = 800; /* Adjust the height as needed */
-
+    var width = 600;
+    var height = 800;
     var projection = d3.geo.albers();
     var path = d3.geo.path().projection(projection);
-    var countyNameMap = new Map(); // Declare countyNameMap here
-
+    var countyNameMap = new Map();
     var svg = d3
       .select("body")
       .append("svg")
       .attr("width", width)
       .attr("height", height);
+    var countiesGroup = svg.append("g").attr("class", "counties-group");
+    var labelsGroup = svg.append("g").attr("class", "labels-group");
 
-    // Load us.json first
     d3.json("us.json", function (error, us) {
       if (error) throw error;
 
@@ -157,7 +208,6 @@
         .append("use")
         .attr("xlink:href", "#land");
 
-      // Load counties.json after us.json
       d3.json("counties.json", function (error, counties) {
         if (error) throw error;
 
@@ -165,10 +215,14 @@
           countyNameMap.set(county.id, county.properties.name);
         });
 
-        // Create a group for counties
-        var countiesGroup = svg.append("g").attr("class", "counties-group");
+        labelsGroup
+          .selectAll(".county-label")
+          .data(topojson.feature(us, us.objects.counties).features)
+          .enter()
+          .append("text")
+          .attr("class", "county-label")
+          .style("display", "none");
 
-        // Append counties
         countiesGroup
           .selectAll(".county")
           .data(topojson.feature(us, us.objects.counties).features)
@@ -180,20 +234,6 @@
           })
           .attr("clip-path", "url(#clip-land)")
           .attr("class", "county")
-          .on("click", function (d) {
-            var countyName = countyNameMap.get("0" + d.id);
-            if (countyName) {
-              d3.select("#popup")
-                .style("display", "flex")
-                .style("left", projection(d3.geo.centroid(d))[0] + "px")
-                .style("top", projection(d3.geo.centroid(d))[1] + "px");
-
-              // Set the county name in the form
-              document.getElementById("name").value = countyName;
-            } else {
-              console.log("No name property found for county:", d);
-            }
-          })
           .on("mouseover", function (d) {
             var countyName = countyNameMap.get("0" + d.id);
             if (countyName) {
@@ -210,31 +250,28 @@
           })
           .on("mouseout", function () {
             d3.select(".county-label").style("display", "none");
+          })
+          .on("click", function (d) {
+            var countyName = countyNameMap.get("0" + d.id);
+            if (countyName) {
+              d3.select("#popup")
+                .style("display", "flex")
+                .style("left", projection(d3.geo.centroid(d))[0] + "px")
+                .style("top", projection(d3.geo.centroid(d))[1] + "px");
+
+              document.getElementById("name").value = countyName;
+            } else {
+              console.log("No name property found for county:", d);
+            }
+          })
+          .style("fill", function (d) {
+            return "#" + Math.floor(Math.random() * 16777215).toString(16);
           });
-
-        // Create a group for county labels
-        var labelsGroup = svg.append("g").attr("class", "labels-group");
-
-        // Append county labels
-        labelsGroup
-          .selectAll(".county-label")
-          .data(topojson.feature(us, us.objects.counties).features)
-          .enter()
-          .append("text")
-          .attr("class", "county-label")
-          .style("display", "none"); // Initially hide labels
       });
     });
 
-    // Function to submit the form
     function submitForm() {
-      // You can add logic to send the form data to the server for email processing
-      // For demonstration purposes, we'll just show a success message and hide the form
-
-      // Show success message
       document.getElementById("successMessage").style.display = "block";
-
-      // Hide the form after submission
       document.getElementById("popup").style.display = "none";
     }
   </script>
